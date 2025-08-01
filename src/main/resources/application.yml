@@ -1,0 +1,156 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+
+  application:
+    name: easy-ticket-system
+
+  # 国际化配置（新增部分）
+  messages:
+    basename: messages       # 资源文件基础名（无需后缀）
+    default-locale: en       # 默认语言为英文
+    encoding: UTF-8          # 资源文件编码
+
+  # 数据源配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/easy_ticket_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      pool-name: HikariPool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      auto-commit: true
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  # JSP配置
+  mvc:
+    view:
+      prefix: /WEB-INF/jsp/
+      suffix: .jsp
+    static-path-pattern: /static/**
+
+  # 静态资源配置
+  web:
+    resources:
+      static-locations: classpath:/static/
+
+  # 邮件配置
+  mail:
+    host: imap.qq.com
+    port: 587
+    username: 1294078961@qq.com # 邮箱地址
+    password: qufduggvfxfbbach # 邮箱授权码
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            enable: false  # 如果使用SSL端口，设置为true
+          timeout: 5000
+          connection-timeout: 503.+-*500
+          write-timeout: 5000
+    default-encoding: UTF-8
+    test-connection: false
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# MyBatis配置
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.easyticket.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: true
+    lazy-loading-enabled: true
+    multiple-result-sets-enabled: true
+    use-column-label: true
+    use-generated-keys: true
+    auto-mapping-behavior: partial
+    default-executor-type: simple
+    default-statement-timeout: 25000
+    # 打印SQL语句（开发环境）
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 日志配置
+logging:
+  level:
+    com.easyticket: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.mail: DEBUG  # 增加邮件日志
+    com.zaxxer.hikari: INFO
+    root: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+  file:
+    name: logs/easy-ticket-system.log
+
+# 系统配置
+easy-ticket:
+  # 订单超时时间（分钟）
+  order-timeout: 15
+  # 邮件激活链接有效期（小时）
+  activation-expire: 24
+  # 系统邮箱地址（发件人显示地址）
+  system-email: 1294078961@qq.com
+  # 系统域名（用于生成激活链接）
+  domain: http://localhost:8080
+  # PDF发票存储路径
+  invoice-path: /invoices/
+  # 验证码配置
+  captcha:
+    width: 120
+    height: 40
+    length: 4
+    expire: 300
+  # 邮件模板配置
+  email:
+    # 邮件模板样式
+    templates:
+      activation:
+        subject: "Easy Ticket System - 账户激活"
+        valid-hours: 24
+    # 邮件发送配置
+    sender:
+      retry-times: 3      # 发送失败重试次数
+      retry-interval: 5   # 重试间隔（秒）
+      async: true         # 是否异步发送
+
+# 安全配置
+security:
+  # 会话超时时间（秒）
+  session-timeout: 1800
+  # 最大并发会话数
+  max-sessions: 1
+
+# Actuator配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized

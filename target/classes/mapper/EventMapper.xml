@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.easyticket.mapper.EventMapper">
+
+    <!-- 活动结果映射 -->
+    <resultMap id="eventResultMap" type="com.easyticket.entity.Event">
+        <id property="id" column="id" />
+        <result property="eventName" column="event_name" />
+        <result property="eventDate" column="event_date" />
+        <result property="location" column="location" />
+        <result property="description" column="description" />
+        <result property="price" column="price" />
+        <result property="totalQuantity" column="total_quantity" />
+        <result property="availableQuantity" column="available_quantity" />
+        <result property="managerId" column="manager_id" />
+        <result property="status" column="status" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <!-- 根据ID查询活动 -->
+    <select id="findById" parameterType="long" resultMap="eventResultMap">
+        SELECT * FROM events WHERE id = #{id}
+    </select>
+
+    <!-- 插入活动 -->
+    <insert id="insertEvent" parameterType="com.easyticket.entity.Event" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO events (event_name, event_date, location, description, price, total_quantity, available_quantity, manager_id, status, create_time, update_time)
+        VALUES (#{eventName}, #{eventDate}, #{location}, #{description}, #{price}, #{totalQuantity}, #{availableQuantity}, #{managerId}, #{status}, #{createTime}, #{updateTime})
+    </insert>
+
+    <!-- 更新活动信息 -->
+    <update id="updateEvent" parameterType="com.easyticket.entity.Event">
+        UPDATE events SET
+            event_name = #{eventName},
+            event_date = #{eventDate},
+            location = #{location},
+            description = #{description},
+            price = #{price},
+            total_quantity = #{totalQuantity},
+            available_quantity = #{availableQuantity},
+            manager_id = #{managerId},
+            status = #{status},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除活动 -->
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM events WHERE id = #{id}
+    </delete>
+
+    <!-- 分页查询可购买的活动场次 -->
+    <select id="findAvailableEvents" resultMap="eventResultMap">
+        SELECT * FROM events
+        <where>
+            event_date > #{currentTime}
+            AND available_quantity > 0
+            <if test="keyword != null and keyword != ''">
+                AND (event_name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY event_date ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取可购买场次总数 -->
+    <select id="countAvailableEvents" resultType="long">
+        SELECT COUNT(*) FROM events
+        <where>
+            event_date > #{currentTime}
+            AND available_quantity > 0
+            <if test="keyword != null and keyword != ''">
+                AND (event_name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <!-- 更新可用票数 -->
+    <update id="updateAvailableQuantity">
+        UPDATE events SET 
+            available_quantity = #{availableQuantity},
+            update_time = NOW()
+        WHERE id = #{eventId}
+    </update>
+
+    <!-- 根据状态查询活动 -->
+    <select id="findByStatus" parameterType="string" resultMap="eventResultMap">
+        SELECT * FROM events ORDER BY event_date ASC
+    </select>
+
+    <!-- 查询即将开始的活动 -->
+    <select id="findUpcomingEvents" resultMap="eventResultMap">
+        SELECT * FROM events 
+        WHERE event_date BETWEEN #{currentTime} AND DATE_ADD(#{currentTime}, INTERVAL #{hours} HOUR)
+        ORDER BY event_date ASC
+    </select>
+
+    <!-- 分页查询所有活动（管理员用） -->
+    <select id="findAllEvents" resultMap="eventResultMap">
+        SELECT * FROM events
+        <where>
+            1=1
+            <if test="keyword != null and keyword != ''">
+                AND (event_name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取所有活动总数（管理员用） -->
+    <select id="countAllEvents" resultType="long">
+        SELECT COUNT(*) FROM events
+        <where>
+            1=1
+            <if test="keyword != null and keyword != ''">
+                AND (event_name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- 根据管理员ID查询活动 -->
+    <select id="findByManagerId" resultMap="eventResultMap">
+        SELECT * FROM events 
+        WHERE manager_id = #{managerId}
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计管理员的活动数量 -->
+    <select id="countByManagerId" resultType="long">
+        SELECT COUNT(*) FROM events WHERE manager_id = #{managerId}
+    </select>
+
+</mapper> 

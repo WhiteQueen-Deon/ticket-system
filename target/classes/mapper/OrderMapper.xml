@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.easyticket.mapper.OrderMapper">
+
+    <!-- 订单结果映射 -->
+    <resultMap id="orderResultMap" type="com.easyticket.entity.Order">
+        <id property="id" column="id" />
+        <result property="orderNumber" column="order_number" />
+        <result property="userId" column="user_id" />
+        <result property="eventId" column="event_id" />
+        <result property="quantity" column="quantity" />
+        <result property="totalAmount" column="total_amount" />
+        <result property="orderDate" column="order_date" />
+        <result property="status" column="status" />
+        <result property="paymentTime" column="payment_time" />
+        <result property="cancellationTime" column="cancellation_time" />
+        <result property="confirmationTime" column="confirmation_time" />
+        <result property="invoicePath" column="invoice_path" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <!-- 订单与用户、活动关联结果映射 -->
+    <resultMap id="orderWithAssociationsResultMap" type="com.easyticket.entity.Order" extends="orderResultMap">
+        <association property="user" javaType="com.easyticket.entity.User">
+            <id property="id" column="user_id" />
+            <result property="username" column="username" />
+            <result property="email" column="email" />
+            <result property="nickname" column="nickname" />
+            <result property="phone" column="phone" />
+        </association>
+        <association property="event" javaType="com.easyticket.entity.Event">
+            <id property="id" column="event_id" />
+            <result property="eventName" column="event_name" />
+            <result property="eventDate" column="event_date" />
+            <result property="location" column="location" />
+            <result property="description" column="description" />
+            <result property="price" column="price" />
+            <result property="totalQuantity" column="total_quantity" />
+            <result property="availableQuantity" column="available_quantity" />
+            <result property="status" column="event_status" />
+        </association>
+    </resultMap>
+
+    <!-- 基础SQL片段 -->
+    <sql id="orderJoinSql">
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        LEFT JOIN events e ON o.event_id = e.id
+    </sql>
+
+    <sql id="orderSelectColumns">
+        o.id, o.order_number, o.quantity, o.total_amount, o.order_date, o.status, o.payment_time,
+        o.user_id, u.username, u.email, u.nickname, u.phone,
+        o.event_id, e.event_name, e.event_date, e.location, e.description, e.price,
+        e.total_quantity, e.available_quantity, e.status as event_status
+    </sql>
+
+    <!-- 根据ID查询订单 -->
+    <select id="findById" parameterType="long" resultMap="orderWithAssociationsResultMap">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        WHERE o.id = #{id}
+    </select>
+
+    <!-- 插入新订单 -->
+    <insert id="insert" parameterType="com.easyticket.entity.Order" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders (order_number, user_id, event_id, quantity, total_amount, status, order_date, payment_time)
+        VALUES (#{orderNumber}, #{user.id}, #{event.id}, #{quantity}, #{totalAmount}, #{status}, #{orderDate}, #{paymentTime})
+    </insert>
+
+    <!-- 更新订单信息 -->
+    <update id="update" parameterType="com.easyticket.entity.Order">
+        UPDATE orders SET
+            quantity = #{quantity},
+            total_amount = #{totalAmount},
+            status = #{status},
+            payment_time = #{paymentTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除订单 -->
+    <delete id="deleteById" parameterType="long">
+        DELETE FROM orders WHERE id = #{id}
+    </delete>
+
+    <!-- 查询用户订单（分页） -->
+    <select id="findUserOrders" resultMap="orderWithAssociationsResultMap">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        <where>
+            u.username = #{username}
+            <if test="orderNumber != null and orderNumber != ''">
+                AND o.order_number LIKE CONCAT('%', #{orderNumber}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND o.status = #{status}
+            </if>
+        </where>
+        ORDER BY o.order_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取用户订单总数 -->
+    <select id="countUserOrders" resultType="long">
+        SELECT COUNT(*)
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        <where>
+            u.username = #{username}
+            <if test="orderNumber != null and orderNumber != ''">
+                AND o.order_number LIKE CONCAT('%', #{orderNumber}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND o.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- 查询所有订单（管理员） -->
+    <select id="findAllOrders" resultMap="orderWithAssociationsResultMap">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        <where>
+            1=1
+            <if test="keyword != null and keyword != ''">
+                AND (o.order_number LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR e.event_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND o.status = #{status}
+            </if>
+        </where>
+        ORDER BY o.order_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取所有订单总数 -->
+    <select id="countAllOrders" resultType="long">
+        SELECT COUNT(*)
+        FROM orders o
+        LEFT JOIN users u ON o.user_id = u.id
+        LEFT JOIN events e ON o.event_id = e.id
+        <where>
+            1=1
+            <if test="keyword != null and keyword != ''">
+                AND (o.order_number LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.username LIKE CONCAT('%', #{keyword}, '%')
+                    OR e.event_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND o.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- 更新订单状态 -->
+    <update id="updateStatus">
+        UPDATE orders SET status = #{status}
+        <if test="status == 'PAID'">
+            , payment_time = NOW()
+        </if>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新订单支付时间 -->
+    <update id="updatePaymentTime">
+        UPDATE orders SET payment_time = #{paymentTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据订单号查询订单 -->
+    <select id="findByOrderNumber" parameterType="string" resultMap="orderWithAssociationsResultMap">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        WHERE o.order_number = #{orderNumber}
+    </select>
+
+    <!-- 查询用户特定活动的订单 -->
+    <select id="findUserEventOrders" resultMap="orderWithAssociationsResultMap">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        WHERE o.user_id = #{userId} AND o.event_id = #{eventId}
+        ORDER BY o.order_date DESC
+    </select>
+
+    <!-- 获取订单统计信息 -->
+    <select id="getOrderStats" resultType="map">
+        SELECT
+            COUNT(*) as totalOrders,
+            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pendingOrders,
+            COUNT(CASE WHEN status = 'paid' THEN 1 END) as paidOrders,
+            COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelledOrders,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completedOrders,
+            COALESCE(SUM(CASE WHEN status IN ('paid', 'completed') THEN total_amount END), 0) as totalRevenue
+        FROM orders
+    </select>
+
+    <!-- 根据状态统计订单数量 -->
+    <select id="countOrdersByStatus" resultType="map">
+        SELECT
+            status,
+            COUNT(*) as count
+        FROM orders
+        GROUP BY status
+    </select>
+
+    <!-- 根据活动ID查询订单数量 -->
+    <select id="countOrdersByEventId" resultType="long">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE event_id = #{eventId}
+    </select>
+
+    <!-- 根据活动ID查询订单（用于删除活动前的检查） -->
+    <select id="findOrdersByEventId" resultMap="orderWithAssociationsResultMap">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        WHERE o.event_id = #{eventId}
+        ORDER BY o.order_date DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 获取今日订单统计信息 -->
+    <select id="getTodayOrderStats" resultType="map">
+        SELECT
+            COUNT(*) as todayOrders,
+            COUNT(CASE WHEN status = 'pending' THEN 1 END) as todayPendingOrders,
+            COUNT(CASE WHEN status = 'paid' THEN 1 END) as todayPaidOrders,
+            COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as todayCancelledOrders,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as todayCompletedOrders,
+            COALESCE(SUM(CASE WHEN status IN ('paid', 'completed') THEN total_amount END), 0) as todayRevenue
+        FROM orders
+        WHERE DATE(order_date) = CURDATE()
+    </select>
+
+    <!-- 查询超时未支付订单 -->
+    <select id="findExpiredPendingOrders" resultMap="orderWithAssociationsResultMap" parameterType="java.util.Map">
+        SELECT <include refid="orderSelectColumns"/>
+        <include refid="orderJoinSql"/>
+        WHERE o.status = 'pending'
+        AND o.order_date &lt; #{expireTime}
+    </select>
+
+
+</mapper>
